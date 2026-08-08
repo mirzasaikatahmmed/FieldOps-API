@@ -7,7 +7,7 @@ namespace FieldOps.DAL.Repositories;
 public interface ICustomerRepository
 {
     Task<Customer?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<PagedResult<Customer>> GetPagedAsync(PaginationQuery pagination, CancellationToken cancellationToken = default);
+    Task<PagedResult<Customer>> GetPagedAsync(PaginationQuery pagination, string? search = null, CancellationToken cancellationToken = default);
     Task AddAsync(Customer customer, CancellationToken cancellationToken = default);
     void Update(Customer customer);
 }
@@ -21,9 +21,20 @@ public class CustomerRepository : ICustomerRepository
     public async Task<Customer?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => await _db.Customers.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
-    public async Task<PagedResult<Customer>> GetPagedAsync(PaginationQuery pagination, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<Customer>> GetPagedAsync(PaginationQuery pagination, string? search = null, CancellationToken cancellationToken = default)
     {
-        var query = _db.Customers.AsNoTracking().OrderBy(c => c.Name);
+        var query = _db.Customers.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = $"%{search.Trim()}%";
+            query = query.Where(c =>
+                EF.Functions.ILike(c.Name, term) ||
+                (c.Email != null && EF.Functions.ILike(c.Email, term)) ||
+                (c.Phone != null && EF.Functions.ILike(c.Phone, term)) ||
+                (c.Address != null && EF.Functions.ILike(c.Address, term)));
+        }
+
+        query = query.OrderBy(c => c.Name);
         var total = await query.CountAsync(cancellationToken);
         var items = await query
             .Skip((pagination.Page - 1) * pagination.PageSize)

@@ -8,7 +8,7 @@ namespace FieldOps.BLL.Services;
 
 public interface ICustomerService
 {
-    Task<Result<PagedResult<CustomerDto>>> GetAsync(PaginationQuery pagination, CancellationToken cancellationToken = default);
+    Task<Result<PagedResult<CustomerDto>>> GetAsync(PaginationQuery pagination, string? search = null, CancellationToken cancellationToken = default);
     Task<Result<CustomerDto>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result<CustomerDto>> CreateAsync(CreateCustomerRequest request, CancellationToken cancellationToken = default);
     Task<Result<CustomerDto>> UpdateAsync(Guid id, UpdateCustomerRequest request, CancellationToken cancellationToken = default);
@@ -30,9 +30,9 @@ public class CustomerService : ICustomerService
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Result<PagedResult<CustomerDto>>> GetAsync(PaginationQuery pagination, CancellationToken cancellationToken = default)
+    public async Task<Result<PagedResult<CustomerDto>>> GetAsync(PaginationQuery pagination, string? search = null, CancellationToken cancellationToken = default)
     {
-        var page = await _customerRepository.GetPagedAsync(pagination, cancellationToken);
+        var page = await _customerRepository.GetPagedAsync(pagination, search, cancellationToken);
         return Result<PagedResult<CustomerDto>>.Success(new PagedResult<CustomerDto>
         {
             Items = page.Items.Select(Map).ToList(),

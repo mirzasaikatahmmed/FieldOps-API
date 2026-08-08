@@ -28,9 +28,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
     public DbSet<Job> Jobs => Set<Job>();
     public DbSet<JobResponse> JobResponses => Set<JobResponse>();
     public DbSet<JobPhoto> JobPhotos => Set<JobPhoto>();
+    public DbSet<JobComment> JobComments => Set<JobComment>();
     public DbSet<Signature> Signatures => Set<Signature>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -50,6 +52,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
             CurrentCompanyId == null || e.Job.CompanyId == CurrentCompanyId);
         builder.Entity<JobPhoto>().HasQueryFilter(e =>
             CurrentCompanyId == null || e.Job.CompanyId == CurrentCompanyId);
+        builder.Entity<JobComment>().HasQueryFilter(e =>
+            CurrentCompanyId == null || e.CompanyId == CurrentCompanyId);
         builder.Entity<Signature>().HasQueryFilter(e =>
             CurrentCompanyId == null || e.Job.CompanyId == CurrentCompanyId);
         builder.Entity<Report>().HasQueryFilter(e =>
@@ -57,6 +61,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid
         builder.Entity<TemplateField>().HasQueryFilter(e =>
             CurrentCompanyId == null || e.JobTemplate.CompanyId == CurrentCompanyId);
         builder.Entity<RefreshToken>().HasQueryFilter(e =>
+            CurrentCompanyId == null || e.User.CompanyId == null || e.User.CompanyId == CurrentCompanyId);
+        builder.Entity<PasswordResetToken>().HasQueryFilter(e =>
             CurrentCompanyId == null || e.User.CompanyId == null || e.User.CompanyId == CurrentCompanyId);
     }
 }

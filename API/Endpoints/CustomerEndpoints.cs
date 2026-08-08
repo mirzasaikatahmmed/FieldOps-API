@@ -18,13 +18,14 @@ public static class CustomerEndpoints
         group.MapGet("/", async (
             [FromQuery] int? page,
             [FromQuery] int? pageSize,
+            [FromQuery] string? search,
             ICustomerService service,
             CancellationToken cancellationToken) =>
         {
             var pagination = new PaginationQuery { Page = page ?? 1, PageSize = pageSize ?? 20 };
-            return (await service.GetAsync(pagination, cancellationToken)).ToHttpResult();
+            return (await service.GetAsync(pagination, search, cancellationToken)).ToHttpResult();
         })
-        .WithSummary("List customers");
+        .WithSummary("List customers (optional search)");
 
         group.MapGet("/{id:guid}", async (Guid id, ICustomerService service, CancellationToken cancellationToken) =>
             (await service.GetByIdAsync(id, cancellationToken)).ToHttpResult())

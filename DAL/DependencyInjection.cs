@@ -15,8 +15,10 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IJobTemplateRepository, JobTemplateRepository>();
         services.AddScoped<IJobRepository, JobRepository>();
+        services.AddScoped<IJobCommentRepository, JobCommentRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

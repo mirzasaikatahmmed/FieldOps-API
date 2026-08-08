@@ -6,6 +6,7 @@ using FieldOps.BLL.DTOs.Auth;
 using FieldOps.BLL.Options;
 using FieldOps.COMMON.Constants;
 using FieldOps.COMMON.Entities;
+using FieldOps.COMMON.Interfaces;
 using FieldOps.COMMON.Models;
 using FieldOps.DAL.Repositories;
 using Microsoft.AspNetCore.Identity;
@@ -19,6 +20,9 @@ public interface IAuthService
     Task<Result<AuthResponse>> RegisterCompanyAsync(RegisterCompanyRequest request, CancellationToken cancellationToken = default);
     Task<Result<AuthResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
     Task<Result<AuthResponse>> RefreshAsync(RefreshRequest request, CancellationToken cancellationToken = default);
+    Task<Result> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
+    Task<Result> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
+    Task<Result> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
     IEnumerable<Claim> BuildClaims(ApplicationUser user);
 }
 
@@ -27,20 +31,29 @@ public class AuthService : IAuthService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ICompanyRepository _companyRepository;
     private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IPasswordResetTokenRepository _passwordResetTokenRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITenantProvider _tenantProvider;
+    private readonly INotificationService _notificationService;
     private readonly JwtOptions _jwtOptions;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
         ICompanyRepository companyRepository,
         IRefreshTokenRepository refreshTokenRepository,
+        IPasswordResetTokenRepository passwordResetTokenRepository,
         IUnitOfWork unitOfWork,
+        ITenantProvider tenantProvider,
+        INotificationService notificationService,
         IOptions<JwtOptions> jwtOptions)
     {
         _userManager = userManager;
         _companyRepository = companyRepository;
         _refreshTokenRepository = refreshTokenRepository;
+        _passwordResetTokenRepository = passwordResetTokenRepository;
         _unitOfWork = unitOfWork;
+        _tenantProvider = tenantProvider;
+        _notificationService = notificationService;
         _jwtOptions = jwtOptions.Value;
     }
 
@@ -54,6 +67,7 @@ public class AuthService : IAuthService
         {
             Id = Guid.NewGuid(),
             Name = request.CompanyName.Trim(),
+            IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -87,6 +101,13 @@ public class AuthService : IAuthService
         if (user is null || !await _userManager.CheckPasswordAsync(user, request.Password))
             return Result<AuthResponse>.Unauthorized("Invalid email or password.");
 
+        if (user.CompanyId.HasValue)
+        {
+            var company = await _companyRepository.GetByIdAsync(user.CompanyId.Value, cancellationToken);
+            if (company is null || !company.IsActive)
+                return Result<AuthResponse>.Forbidden("Company account is inactive.");
+        }
+
         return Result<AuthResponse>.Success(await IssueTokensAsync(user, cancellationToken));
     }
 
@@ -97,9 +118,82 @@ public class AuthService : IAuthService
         if (stored is null || !stored.IsActive)
             return Result<AuthResponse>.Unauthorized("Invalid refresh token.");
 
+        if (stored.User.CompanyId.HasValue)
+        {
+            var company = await _companyRepository.GetByIdAsync(stored.User.CompanyId.Value, cancellationToken);
+            if (company is null || !company.IsActive)
+                return Result<AuthResponse>.Forbidden("Company account is inactive.");
+        }
+
         stored.RevokedAt = DateTime.UtcNow;
         var response = await IssueTokensAsync(stored.User, cancellationToken);
         return Result<AuthResponse>.Success(response);
+    }
+
+    public async Task<Result> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        if (_tenantProvider.UserId is not Guid userId)
+            return Result.Unauthorized();
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return Result.Unauthorized();
+
+        var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+            return Result.Failure(string.Join("; ", result.Errors.Select(e => e.Description)));
+
+        await _refreshTokenRepository.RevokeUserTokensAsync(user.Id, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user is not null)
+        {
+            await _passwordResetTokenRepository.InvalidateUserTokensAsync(user.Id, cancellationToken);
+
+            var rawToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            await _passwordResetTokenRepository.AddAsync(new PasswordResetToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                TokenHash = HashToken(rawToken),
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
+                CreatedAt = DateTime.UtcNow
+            }, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await _notificationService.NotifyAdminAsync(
+                $"Password reset token for {user.Email}: {rawToken}",
+                cancellationToken);
+        }
+
+        return Result.Success();
+    }
+
+    public async Task<Result> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+            return Result.Failure("Invalid reset token.");
+
+        var stored = await _passwordResetTokenRepository.GetActiveByHashAsync(HashToken(request.Token), cancellationToken);
+        if (stored is null || stored.UserId != user.Id)
+            return Result.Failure("Invalid or expired reset token.");
+
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
+        if (!result.Succeeded)
+            return Result.Failure(string.Join("; ", result.Errors.Select(e => e.Description)));
+
+        stored.UsedAt = DateTime.UtcNow;
+        await _passwordResetTokenRepository.InvalidateUserTokensAsync(user.Id, cancellationToken);
+        await _refreshTokenRepository.RevokeUserTokensAsync(user.Id, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Success();
     }
 
     public IEnumerable<Claim> BuildClaims(ApplicationUser user) => JwtClaimFactory.BuildClaims(user);

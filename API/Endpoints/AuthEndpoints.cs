@@ -49,6 +49,45 @@ public static class AuthEndpoints
         .WithSummary("Exchange a refresh token for a new access token")
         .AllowAnonymous();
 
+        group.MapPost("/change-password", async (
+            ChangePasswordRequest request,
+            IValidator<ChangePasswordRequest> validator,
+            IAuthService authService,
+            CancellationToken cancellationToken) =>
+        {
+            await validator.ValidateAndThrowAsync(request, cancellationToken);
+            var result = await authService.ChangePasswordAsync(request, cancellationToken);
+            return result.IsSuccess ? Results.NoContent() : result.ToHttpResult();
+        })
+        .RequireAuthorization()
+        .WithSummary("Change password for the current user");
+
+        group.MapPost("/forgot-password", async (
+            ForgotPasswordRequest request,
+            IValidator<ForgotPasswordRequest> validator,
+            IAuthService authService,
+            CancellationToken cancellationToken) =>
+        {
+            await validator.ValidateAndThrowAsync(request, cancellationToken);
+            await authService.ForgotPasswordAsync(request, cancellationToken);
+            return Results.Ok(new { message = "If the account exists, a reset token was issued." });
+        })
+        .AllowAnonymous()
+        .WithSummary("Request a password reset token (logged via notification stub)");
+
+        group.MapPost("/reset-password", async (
+            ResetPasswordRequest request,
+            IValidator<ResetPasswordRequest> validator,
+            IAuthService authService,
+            CancellationToken cancellationToken) =>
+        {
+            await validator.ValidateAndThrowAsync(request, cancellationToken);
+            var result = await authService.ResetPasswordAsync(request, cancellationToken);
+            return result.IsSuccess ? Results.NoContent() : result.ToHttpResult();
+        })
+        .AllowAnonymous()
+        .WithSummary("Reset password using a forgot-password token");
+
         return group;
     }
 }

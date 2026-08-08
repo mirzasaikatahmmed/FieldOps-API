@@ -11,6 +11,7 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
         builder.ToTable("Companies");
         builder.HasKey(x => x.Id);
         builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.IsActive).IsRequired().HasDefaultValue(true);
         builder.Property(x => x.CreatedAt).IsRequired();
     }
 }

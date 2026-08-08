@@ -123,10 +123,22 @@ curl -s -X POST "$BASE/api/job-templates" \
 
 ## Roles
 
-- `SuperAdmin` — platform owner (seeded), no company scope
-- `CompanyAdmin` — users, templates, company-wide jobs/reports
-- `Dispatcher` — create/assign jobs
+- `SuperAdmin` — platform owner (seeded), manages companies via `/api/companies`
+- `CompanyAdmin` — users, templates, company-wide jobs/reports, dashboard
+- `Dispatcher` — create/assign jobs, dashboard
 - `Technician` — assigned jobs only (enforced in BLL)
+
+## Additional API features
+
+| Area | Endpoints |
+|---|---|
+| Dashboard | `GET /api/dashboard` — status counts, today’s jobs, SLA breaches, technician workload |
+| Companies | `GET/POST /api/companies`, `PATCH /api/companies/{id}/activate\|deactivate` (SuperAdmin) |
+| Comments | `GET/POST /api/jobs/{id}/comments` |
+| Search | `GET /api/jobs?search=&customerId=&templateId=…`, `GET /api/customers?search=` |
+| Password | `POST /api/auth/change-password`, `/forgot-password`, `/reset-password` |
+
+Forgot-password issues a one-hour token that is **logged** via `INotificationService` (no real email).
 
 ## Multi-tenancy
 

@@ -9,8 +9,26 @@ public class JobFilter
 {
     public JobStatus? Status { get; set; }
     public Guid? TechnicianId { get; set; }
+    public Guid? CustomerId { get; set; }
+    public Guid? TemplateId { get; set; }
     public DateTime? From { get; set; }
     public DateTime? To { get; set; }
+    public string? Search { get; set; }
+}
+
+public class TechnicianWorkloadRow
+{
+    public Guid TechnicianId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public int OpenJobCount { get; set; }
+}
+
+public class DashboardSnapshot
+{
+    public Dictionary<JobStatus, int> CountsByStatus { get; set; } = new();
+    public int JobsScheduledToday { get; set; }
+    public int SlaBreachedCount { get; set; }
+    public List<TechnicianWorkloadRow> TechnicianWorkload { get; set; } = [];
 }
 
 public interface IJobRepository
@@ -27,6 +45,7 @@ public interface IJobRepository
     Task AddReportAsync(Report report, CancellationToken cancellationToken = default);
     Task<Report?> GetReportByJobIdAsync(Guid jobId, CancellationToken cancellationToken = default);
     Task<List<Job>> GetSlaBreachedScheduledJobsAsync(DateTime threshold, CancellationToken cancellationToken = default);
+    Task<DashboardSnapshot> GetDashboardSnapshotAsync(DateTime todayStartUtc, DateTime todayEndUtc, DateTime slaThreshold, CancellationToken cancellationToken = default);
 }
 
 public class JobRepository : IJobRepository
@@ -79,10 +98,22 @@ public class JobRepository : IJobRepository
             query = query.Where(j => j.Status == filter.Status);
         if (filter.TechnicianId.HasValue)
             query = query.Where(j => j.AssignedTechnicianId == filter.TechnicianId);
+        if (filter.CustomerId.HasValue)
+            query = query.Where(j => j.CustomerId == filter.CustomerId);
+        if (filter.TemplateId.HasValue)
+            query = query.Where(j => j.JobTemplateId == filter.TemplateId);
         if (filter.From.HasValue)
             query = query.Where(j => j.ScheduledAt >= filter.From);
         if (filter.To.HasValue)
             query = query.Where(j => j.ScheduledAt <= filter.To);
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var term = $"%{filter.Search.Trim()}%";
+            query = query.Where(j =>
+                EF.Functions.ILike(j.Title, term) ||
+                (j.Notes != null && EF.Functions.ILike(j.Notes, term)) ||
+                EF.Functions.ILike(j.Customer.Name, term));
+        }
 
         query = query.OrderByDescending(j => j.ScheduledAt);
 
@@ -143,5 +174,52 @@ public class JobRepository : IJobRepository
             .Include(j => j.AssignedTechnician)
             .Where(j => j.Status == JobStatus.Scheduled && j.ScheduledAt < threshold)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<DashboardSnapshot> GetDashboardSnapshotAsync(
+        DateTime todayStartUtc,
+        DateTime todayEndUtc,
+        DateTime slaThreshold,
+        CancellationToken cancellationToken = default)
+    {
+        var statusCounts = await _db.Jobs
+            .AsNoTracking()
+            .GroupBy(j => j.Status)
+            .Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        var counts = Enum.GetValues<JobStatus>().ToDictionary(s => s, _ => 0);
+        foreach (var row in statusCounts)
+            counts[row.Status] = row.Count;
+
+        var scheduledToday = await _db.Jobs.CountAsync(
+            j => j.ScheduledAt >= todayStartUtc && j.ScheduledAt < todayEndUtc,
+            cancellationToken);
+
+        var slaBreached = await _db.Jobs.CountAsync(
+            j => j.Status == JobStatus.Scheduled && j.ScheduledAt < slaThreshold,
+            cancellationToken);
+
+        var workload = await _db.Jobs
+            .AsNoTracking()
+            .Where(j => j.AssignedTechnicianId != null &&
+                        (j.Status == JobStatus.Scheduled || j.Status == JobStatus.InProgress))
+            .GroupBy(j => new { j.AssignedTechnicianId, j.AssignedTechnician!.FullName })
+            .Select(g => new TechnicianWorkloadRow
+            {
+                TechnicianId = g.Key.AssignedTechnicianId!.Value,
+                FullName = g.Key.FullName,
+                OpenJobCount = g.Count()
+            })
+            .OrderByDescending(x => x.OpenJobCount)
+            .ToListAsync(cancellationToken);
+
+        return new DashboardSnapshot
+        {
+            CountsByStatus = counts,
+            JobsScheduledToday = scheduledToday,
+            SlaBreachedCount = slaBreached,
+            TechnicianWorkload = workload
+        };
     }
 }

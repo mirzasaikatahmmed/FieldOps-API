@@ -23,6 +23,7 @@ public class Job
     public JobTemplate JobTemplate { get; set; } = null!;
     public ICollection<JobResponse> Responses { get; set; } = new List<JobResponse>();
     public ICollection<JobPhoto> Photos { get; set; } = new List<JobPhoto>();
+    public ICollection<JobComment> Comments { get; set; } = new List<JobComment>();
     public Signature? Signature { get; set; }
     public Report? Report { get; set; }
 }

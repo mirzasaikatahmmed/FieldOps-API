@@ -66,3 +66,47 @@ public class UpdateCustomerRequestValidator : AbstractValidator<DTOs.Customers.U
         RuleFor(x => x.Address).MaximumLength(500);
     }
 }
+
+public class ChangePasswordRequestValidator : AbstractValidator<ChangePasswordRequest>
+{
+    public ChangePasswordRequestValidator()
+    {
+        RuleFor(x => x.CurrentPassword).NotEmpty();
+        RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(8).MaximumLength(100)
+            .NotEqual(x => x.CurrentPassword);
+    }
+}
+
+public class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRequest>
+{
+    public ForgotPasswordRequestValidator()
+    {
+        RuleFor(x => x.Email).NotEmpty().EmailAddress();
+    }
+}
+
+public class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
+{
+    public ResetPasswordRequestValidator()
+    {
+        RuleFor(x => x.Email).NotEmpty().EmailAddress();
+        RuleFor(x => x.Token).NotEmpty();
+        RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(8).MaximumLength(100);
+    }
+}
+
+public class CreateCompanyRequestValidator : AbstractValidator<DTOs.Companies.CreateCompanyRequest>
+{
+    public CreateCompanyRequestValidator()
+    {
+        RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+    }
+}
+
+public class CreateJobCommentRequestValidator : AbstractValidator<DTOs.Jobs.CreateJobCommentRequest>
+{
+    public CreateJobCommentRequestValidator()
+    {
+        RuleFor(x => x.Body).NotEmpty().MaximumLength(4000);
+    }
+}

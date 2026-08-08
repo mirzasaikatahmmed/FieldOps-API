@@ -135,7 +135,8 @@ internal sealed class NoOpJobStatusNotifier : IJobStatusNotifier
         CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
-public class HappyPathIntegrationTests : IClassFixture<FieldOpsApiFactory>
+[Collection("Integration")]
+public class HappyPathIntegrationTests
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {

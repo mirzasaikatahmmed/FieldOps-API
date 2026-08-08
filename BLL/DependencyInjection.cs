@@ -20,8 +20,11 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICustomerService, CustomerService>();
+        services.AddScoped<ICompanyService, CompanyService>();
         services.AddScoped<IJobTemplateService, JobTemplateService>();
         services.AddScoped<IJobService, JobService>();
+        services.AddScoped<IJobCommentService, JobCommentService>();
+        services.AddScoped<IDashboardService, DashboardService>();
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IPdfService, PdfService>();
 

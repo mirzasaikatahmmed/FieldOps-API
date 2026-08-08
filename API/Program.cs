@@ -154,9 +154,11 @@ try
 
     app.MapAuthEndpoints();
     app.MapUserEndpoints();
+    app.MapCompanyEndpoints();
     app.MapCustomerEndpoints();
     app.MapJobTemplateEndpoints();
     app.MapJobEndpoints();
+    app.MapDashboardEndpoints();
     app.MapHub<JobStatusHub>("/hubs/job-status");
 
     app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();

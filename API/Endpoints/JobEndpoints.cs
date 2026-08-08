@@ -18,8 +18,11 @@ public static class JobEndpoints
         group.MapGet("/", async (
             [FromQuery] JobStatus? status,
             [FromQuery] Guid? technicianId,
+            [FromQuery] Guid? customerId,
+            [FromQuery] Guid? templateId,
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to,
+            [FromQuery] string? search,
             [FromQuery] int? page,
             [FromQuery] int? pageSize,
             IJobService service,
@@ -29,14 +32,17 @@ public static class JobEndpoints
             {
                 Status = status,
                 TechnicianId = technicianId,
+                CustomerId = customerId,
+                TemplateId = templateId,
                 From = from,
-                To = to
+                To = to,
+                Search = search
             };
             var pagination = new PaginationQuery { Page = page ?? 1, PageSize = pageSize ?? 20 };
             return (await service.GetAsync(filter, pagination, cancellationToken)).ToHttpResult();
         })
         .RequireRoles(Roles.CompanyAdmin, Roles.Dispatcher, Roles.Technician)
-        .WithSummary("List jobs with filters and pagination");
+        .WithSummary("List jobs with filters, search, and pagination");
 
         group.MapPost("/", async (
             CreateJobRequest request,
@@ -156,6 +162,32 @@ public static class JobEndpoints
             (await service.GetReportAsync(id, cancellationToken)).ToHttpResult())
         .RequireRoles(Roles.CompanyAdmin, Roles.Dispatcher, Roles.Technician)
         .WithSummary("Get job PDF report URL");
+
+        group.MapGet("/{id:guid}/comments", async (
+            Guid id,
+            [FromQuery] int? page,
+            [FromQuery] int? pageSize,
+            IJobCommentService commentService,
+            CancellationToken cancellationToken) =>
+        {
+            var pagination = new PaginationQuery { Page = page ?? 1, PageSize = pageSize ?? 20 };
+            return (await commentService.GetAsync(id, pagination, cancellationToken)).ToHttpResult();
+        })
+        .RequireRoles(Roles.CompanyAdmin, Roles.Dispatcher, Roles.Technician)
+        .WithSummary("List job comments");
+
+        group.MapPost("/{id:guid}/comments", async (
+            Guid id,
+            CreateJobCommentRequest request,
+            IValidator<CreateJobCommentRequest> validator,
+            IJobCommentService commentService,
+            CancellationToken cancellationToken) =>
+        {
+            await validator.ValidateAndThrowAsync(request, cancellationToken);
+            return (await commentService.CreateAsync(id, request, cancellationToken)).ToHttpResult();
+        })
+        .RequireRoles(Roles.CompanyAdmin, Roles.Dispatcher, Roles.Technician)
+        .WithSummary("Add a job comment");
 
         return group;
     }
