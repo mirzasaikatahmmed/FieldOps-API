@@ -17,7 +17,7 @@ COPY API/ API/
 # Restore again after source copy so host bin/obj cannot poison assets
 RUN dotnet publish API/FieldOps.API.csproj -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
