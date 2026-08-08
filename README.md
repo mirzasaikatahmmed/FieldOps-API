@@ -1,5 +1,7 @@
 # FieldOps
 
+[![CI](https://github.com/mirzasaikatahmmed/FieldOps-API/actions/workflows/ci.yml/badge.svg)](https://github.com/mirzasaikatahmmed/FieldOps-API/actions/workflows/ci.yml)
+
 Multi-tenant field service and inspection management backend built with **.NET 8** Minimal APIs, PostgreSQL, SignalR, QuestPDF, and MinIO-compatible object storage.
 
 ## Architecture
@@ -23,11 +25,13 @@ Reference direction (no cycles): `COMMON` ← `DAL` ← `BLL` ← `API`
 
 ```bash
 cp .env.example .env
-docker compose pull
-docker compose up -d
+make up          # pull + start + wait for API
+make smoke       # automated happy-path API check
+# or one-shot interview demo:
+make demo
 ```
 
-Uses the published image `mirzasaikatahmmed/fieldops-api:latest`. To rebuild from source instead, run `docker build -t mirzasaikatahmmed/fieldops-api:latest .` then `docker compose up -d`.
+Uses the published image `mirzasaikatahmmed/fieldops-api:latest`. To rebuild from source: `make docker-build && docker compose up -d`.
 
 API: http://localhost:5000  
 Swagger: http://localhost:5000/swagger  
@@ -138,41 +142,53 @@ Forgot-password issues a one-hour token that is **logged** via `INotificationSer
 
 JWT claim `company_id` is read by `ITenantProvider`. EF Core global query filters scope tenant entities. Cross-tenant access returns `404`. SuperAdmin has null `company_id` (filter inactive); use `IgnoreQueryFilters()` only in explicit SuperAdmin/cross-tenant DAL methods (e.g. SLA checker).
 
+## Automation (interview / local)
+
+| Command | What it does |
+|---|---|
+| `make ci` | Restore → build → test (same gate as GitHub Actions) |
+| `make preflight` | Format verify + CI (local pre-push gate) |
+| `make up` | Compose pull/up and wait until Swagger responds |
+| `make smoke` | Curl-based happy path (register → job → dashboard → search) |
+| `make demo` | `up` + `smoke` + interview talking points |
+| `make migrate` | Apply EF Core migrations |
+| `make down` / `make logs` | Stop stack / tail API logs |
+
+Scripts: `scripts/dev-up.sh`, `smoke-test.sh`, `interview-demo.sh`, `migrate.sh`, `preflight.sh`  
+Also: Dependabot (`.github/dependabot.yml`) for weekly NuGet/Actions updates.
+
 ## Tests
 
 ```bash
-dotnet test
+make test
+# or: dotnet test
 ```
 
 Unit tests cover status transitions, JWT claims, and tenant query filters. Integration tests spin up Postgres via Testcontainers and exercise register → job → complete → report.
 
-## CI/CD (GitHub Actions → Docker Hub)
+## CI/CD (GitHub Actions)
 
-Workflow: `.github/workflows/docker-publish.yml`
+Workflow: [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 
-| Event | Behavior |
+| Job | When | Behavior |
+|---|---|---|
+| **Build & Test** | PR + push to `main` | `dotnet restore/build/test` |
+| **Docker Build & Push** | After tests pass | Build image; push only on `main` / tags (not PRs) |
+
+| Event | Image tags |
 |---|---|
-| Pull request to `main` | Build image only (no push) |
-| Push to `main` | Build and push `latest` + `sha-<commit>` |
-| Tag `v*` (e.g. `v1.0.0`) | Build and push version tags |
-| Manual (`workflow_dispatch`) | Build and push |
+| Push to `main` | `latest`, `sha-<commit>` |
+| Tag `v*` | Semver tags |
+| Pull request | Build image only (no push) |
+
+Published image: `mirzasaikatahmmed/fieldops-api`
 
 ### Required GitHub secrets
 
-In the repo: **Settings → Secrets and variables → Actions**
-
 | Secret | Value |
 |---|---|
-| `DOCKERHUB_USERNAME` | Your Docker Hub username |
-| `DOCKERHUB_TOKEN` | Docker Hub [Access Token](https://hub.docker.com/settings/security) (not your password) |
-
-Published image: `DOCKERHUB_USERNAME/fieldops-api`
-
-### Create a Docker Hub access token
-
-1. Docker Hub → Account Settings → Security → New Access Token
-2. Permission: Read, Write, Delete (or Read & Write)
-3. Paste the token into the `DOCKERHUB_TOKEN` GitHub secret
+| `DOCKERHUB_USERNAME` | Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub [Access Token](https://hub.docker.com/settings/security) |
 
 ## Configuration
 

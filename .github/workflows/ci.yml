@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: CI
 
 on:
   push:
@@ -9,14 +9,38 @@ on:
   workflow_dispatch:
 
 env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
   IMAGE_NAME: fieldops-api
 
 jobs:
-  build-and-push:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore FieldOps.sln
+
+      - name: Build
+        run: dotnet build FieldOps.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test FieldOps.sln -c Release --no-build --verbosity normal
+
+  docker:
+    name: Docker Build & Push
+    needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,7 +59,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          images: mirzasaikatahmmed/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-

@@ -5,6 +5,7 @@ obj/
 *.suo
 appsettings.*.local.json
 logs/
+**/logs/
 .env
 **/TestResults/
 **/coverage/
