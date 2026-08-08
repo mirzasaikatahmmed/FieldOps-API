@@ -44,10 +44,7 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
 
   api:
-    image: ${DOCKERHUB_IMAGE:-fieldops-api:local}
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: mirzasaikatahmmed/fieldops-api:latest
     ports:
       - "5000:8080"
     environment:

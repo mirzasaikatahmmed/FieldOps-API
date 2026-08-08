@@ -23,22 +23,16 @@ Reference direction (no cycles): `COMMON` ← `DAL` ← `BLL` ← `API`
 
 ```bash
 cp .env.example .env
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
+
+Uses the published image `mirzasaikatahmmed/fieldops-api:latest`. To rebuild from source instead, run `docker build -t mirzasaikatahmmed/fieldops-api:latest .` then `docker compose up -d`.
 
 API: http://localhost:5000  
 Swagger: http://localhost:5000/swagger  
 MinIO console: http://localhost:9001  
 SignalR hub: `/hubs/job-status?access_token=<jwt>`
-
-### Pull pre-built image from Docker Hub
-
-After CI has published an image:
-
-```bash
-export DOCKERHUB_IMAGE=YOUR_DOCKERHUB_USERNAME/fieldops-api:latest
-docker compose up -d
-```
 
 ### Seeded SuperAdmin
 
