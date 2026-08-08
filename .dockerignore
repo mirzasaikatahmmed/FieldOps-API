@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.git/
+**/TestResults/
+**/logs/
+**/graphify-out/
+Tests/
+.env
+*.user
+*.suo
+README.md
+.dockerignore

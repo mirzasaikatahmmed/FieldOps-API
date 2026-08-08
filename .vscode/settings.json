@@ -1,0 +1,4 @@
+{
+  "dotnet.dotnetPath": "/usr/bin/dotnet",
+  "dotnet.defaultSolution": "FieldOps.sln"
+}

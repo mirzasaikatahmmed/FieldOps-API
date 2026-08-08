@@ -1,0 +1,11 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+appsettings.*.local.json
+logs/
+.env
+**/TestResults/
+**/coverage/
+graphify-out/

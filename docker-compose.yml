@@ -1,0 +1,73 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: fieldops
+      POSTGRES_USER: fieldops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - fieldops_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldops"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - fieldops_minio_data:/data
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 $${MINIO_ACCESS_KEY} $${MINIO_SECRET_KEY};
+      mc mb --ignore-existing local/fieldops;
+      mc anonymous set download local/fieldops;
+      exit 0;
+      "
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Database=fieldops;Username=fieldops;Password=${POSTGRES_PASSWORD}"
+      Jwt__Secret: ${JWT_SECRET}
+      Jwt__Issuer: FieldOps
+      Jwt__Audience: FieldOps
+      Storage__Endpoint: ${MINIO_ENDPOINT}
+      Storage__AccessKey: ${MINIO_ACCESS_KEY}
+      Storage__SecretKey: ${MINIO_SECRET_KEY}
+      Storage__Bucket: fieldops
+      Storage__PublicBaseUrl: http://localhost:9000/fieldops
+      Seed__SuperAdmin__Email: superadmin@fieldops.local
+      Seed__SuperAdmin__Password: SuperAdmin123!
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+volumes:
+  fieldops_pg_data:
+  fieldops_minio_data:
