@@ -31,6 +31,15 @@ Swagger: http://localhost:5000/swagger
 MinIO console: http://localhost:9001  
 SignalR hub: `/hubs/job-status?access_token=<jwt>`
 
+### Pull pre-built image from Docker Hub
+
+After CI has published an image:
+
+```bash
+export DOCKERHUB_IMAGE=YOUR_DOCKERHUB_USERNAME/fieldops-api:latest
+docker compose up -d
+```
+
 ### Seeded SuperAdmin
 
 | Field | Value |
@@ -130,6 +139,34 @@ dotnet test
 ```
 
 Unit tests cover status transitions, JWT claims, and tenant query filters. Integration tests spin up Postgres via Testcontainers and exercise register → job → complete → report.
+
+## CI/CD (GitHub Actions → Docker Hub)
+
+Workflow: `.github/workflows/docker-publish.yml`
+
+| Event | Behavior |
+|---|---|
+| Pull request to `main` | Build image only (no push) |
+| Push to `main` | Build and push `latest` + `sha-<commit>` |
+| Tag `v*` (e.g. `v1.0.0`) | Build and push version tags |
+| Manual (`workflow_dispatch`) | Build and push |
+
+### Required GitHub secrets
+
+In the repo: **Settings → Secrets and variables → Actions**
+
+| Secret | Value |
+|---|---|
+| `DOCKERHUB_USERNAME` | Your Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub [Access Token](https://hub.docker.com/settings/security) (not your password) |
+
+Published image: `DOCKERHUB_USERNAME/fieldops-api`
+
+### Create a Docker Hub access token
+
+1. Docker Hub → Account Settings → Security → New Access Token
+2. Permission: Read, Write, Delete (or Read & Write)
+3. Paste the token into the `DOCKERHUB_TOKEN` GitHub secret
 
 ## Configuration
 
