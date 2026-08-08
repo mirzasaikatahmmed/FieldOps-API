@@ -2,6 +2,7 @@ using FieldOps.BLL.DTOs.Jobs;
 using FieldOps.BLL.Services;
 using FieldOps.COMMON.Constants;
 using FieldOps.COMMON.Enums;
+using FieldOps.COMMON.Interfaces;
 using FieldOps.COMMON.Models;
 using FieldOps.DAL.Repositories;
 using FluentValidation;
@@ -162,6 +163,14 @@ public static class JobEndpoints
             (await service.GetReportAsync(id, cancellationToken)).ToHttpResult())
         .RequireRoles(Roles.CompanyAdmin, Roles.Dispatcher, Roles.Technician)
         .WithSummary("Get job PDF report URL");
+
+        group.MapPost("/{id:guid}/ai-summary", async (
+            Guid id,
+            IAiAssistantService aiService,
+            CancellationToken cancellationToken) =>
+            (await aiService.GenerateJobSummaryAsync(id, cancellationToken)).ToHttpResult())
+        .RequireRoles(Roles.CompanyAdmin, Roles.Dispatcher, Roles.Technician)
+        .WithSummary("Generate and persist an AI job report summary");
 
         group.MapGet("/{id:guid}/comments", async (
             Guid id,

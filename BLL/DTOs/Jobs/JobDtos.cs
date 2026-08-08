@@ -60,6 +60,8 @@ public record JobDetailDto(
     DateTime? CompletedAt,
     JobStatus Status,
     string? Notes,
+    string? AiSummary,
+    DateTime? AiSummaryGeneratedAt,
     DateTime CreatedAt,
     IReadOnlyList<JobResponseDto> Responses,
     IReadOnlyList<JobPhotoDto> Photos,

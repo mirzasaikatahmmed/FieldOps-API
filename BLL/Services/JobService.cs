@@ -461,6 +461,8 @@ public class JobService : IJobService
         job.CompletedAt,
         job.Status,
         job.Notes,
+        job.AiSummary,
+        job.AiSummaryGeneratedAt,
         job.CreatedAt,
         job.Responses.Select(r => new JobResponseDto(
             r.Id,

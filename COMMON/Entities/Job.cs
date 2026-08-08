@@ -15,6 +15,8 @@ public class Job
     public DateTime? CompletedAt { get; set; }
     public JobStatus Status { get; set; } = JobStatus.Scheduled;
     public string? Notes { get; set; }
+    public string? AiSummary { get; set; }
+    public DateTime? AiSummaryGeneratedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Company Company { get; set; } = null!;

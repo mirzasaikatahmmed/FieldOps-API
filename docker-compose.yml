@@ -58,6 +58,9 @@ services:
       Storage__SecretKey: ${MINIO_SECRET_KEY}
       Storage__Bucket: fieldops
       Storage__PublicBaseUrl: http://localhost:9000/fieldops
+      Ai__BaseUrl: ${Ai__BaseUrl:-https://api.openai.com/v1}
+      Ai__ApiKey: ${Ai__ApiKey:-}
+      Ai__Model: ${Ai__Model:-gpt-4o-mini}
       Seed__SuperAdmin__Email: superadmin@fieldops.local
       Seed__SuperAdmin__Password: SuperAdmin123!
     depends_on:

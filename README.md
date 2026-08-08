@@ -8,13 +8,15 @@ Multi-tenant field service and inspection management backend built with **.NET 8
 
 | Project | Responsibility |
 |---|---|
-| `COMMON` | Entities, enums, shared interfaces (`ITenantProvider`, `IStorageService`, `IPdfService`), `Result<T>`, pagination helpers |
+| `COMMON` | Entities, enums, shared interfaces (`ITenantProvider`, `IStorageService`, `IPdfService`, `ILlmClient`, `IAiAssistantService`), `Result<T>`, pagination helpers |
 | `DAL` | `AppDbContext`, Fluent API configs, EF migrations, repositories, data seeder |
 | `BLL` | Business services, FluentValidation validators, DTOs, JWT/auth, MinIO + QuestPDF implementations |
 | `API` | Thin Minimal API endpoints, SignalR hub, middleware, Swagger, hosted SLA checker |
 | `Tests` | Unit + integration tests (`WebApplicationFactory` + Testcontainers Postgres) |
 
 Reference direction (no cycles): `COMMON` ← `DAL` ← `BLL` ← `API`
+
+**Workflow docs:** [docs/WORKFLOW.md](docs/WORKFLOW.md) — CI/CD, local automation, and domain job lifecycle.
 
 ## Prerequisites
 
@@ -135,6 +137,7 @@ curl -s -X POST "$BASE/api/job-templates" \
 | Comments | `GET/POST /api/jobs/{id}/comments` |
 | Search | `GET /api/jobs?search=&customerId=&templateId=…`, `GET /api/customers?search=` |
 | Password | `POST /api/auth/change-password`, `/forgot-password`, `/reset-password` |
+| AI | `POST /api/jobs/{id}/ai-summary`, `POST /api/ai/ask`, `GET /api/ai/risk-hints` (stub when `Ai:ApiKey` empty) |
 
 Forgot-password issues a one-hour token that is **logged** via `INotificationService` (no real email).
 
@@ -164,7 +167,7 @@ make test
 # or: dotnet test
 ```
 
-Unit tests cover status transitions, JWT claims, and tenant query filters. Integration tests spin up Postgres via Testcontainers and exercise register → job → complete → report.
+Unit tests cover status transitions, JWT claims, tenant query filters, AI stub client, and risk scoring. Integration tests spin up Postgres via Testcontainers and exercise register → job → complete → report (plus AI endpoints with the stub LLM).
 
 ## CI/CD (GitHub Actions)
 
@@ -197,4 +200,5 @@ Published image: `mirzasaikatahmmed/fieldops-api`
 | `ConnectionStrings:DefaultConnection` | PostgreSQL |
 | `Jwt:Secret` | HMAC signing key (≥32 chars) |
 | `Storage:*` | MinIO/S3 endpoint, keys, bucket, public URL |
+| `Ai:*` | OpenAI-compatible chat (`BaseUrl`, `ApiKey`, `Model`, `TimeoutSeconds`). Empty `ApiKey` → local stub (no network) |
 | `Seed:SuperAdmin:*` | Bootstrap SuperAdmin credentials |

@@ -80,6 +80,14 @@ public class PdfService : IPdfService
                     if (!string.IsNullOrWhiteSpace(job.Notes))
                         col.Item().Text($"Notes: {job.Notes}");
 
+                    if (!string.IsNullOrWhiteSpace(job.AiSummary))
+                    {
+                        col.Item().PaddingTop(12).Text("AI Summary").FontSize(14).SemiBold();
+                        col.Item().Text(job.AiSummary);
+                        if (job.AiSummaryGeneratedAt.HasValue)
+                            col.Item().Text($"Generated: {job.AiSummaryGeneratedAt.Value:u}").FontSize(9).FontColor(Colors.Grey.Darken1);
+                    }
+
                     col.Item().PaddingTop(12).Text("Checklist Responses").FontSize(14).SemiBold();
 
                     var fields = job.JobTemplate.TemplateFields.OrderBy(f => f.SortOrder).ToList();

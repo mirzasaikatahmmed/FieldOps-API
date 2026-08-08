@@ -13,6 +13,7 @@ public class JobConfiguration : IEntityTypeConfiguration<Job>
         builder.Property(x => x.Title).IsRequired().HasMaxLength(300);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
         builder.Property(x => x.Notes).HasMaxLength(2000);
+        builder.Property(x => x.AiSummary).HasMaxLength(8000);
 
         builder.HasOne(x => x.Company)
             .WithMany(x => x.Jobs)
